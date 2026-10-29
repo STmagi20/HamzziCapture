@@ -28,6 +28,11 @@ Editor: pen / highlighter / line / arrow / rectangle / ellipse / text / mosaic, 
 
 Running the program twice would clash on hotkeys, so a second launch shows a notice and exits.
 
+## Language & font
+- At startup the UI is Korean if your Windows display language is Korean, otherwise English.
+- Use the **Language** buttons (한국어 | English) in the ⓘ About window to switch at any time; the change applies immediately. The choice is not saved, so the language is auto-detected again on the next launch.
+- Both languages use the same Windows default font, **Malgun Gothic**, so the text looks consistent even when Korean and English are mixed. No extra fonts need to be installed.
+
 ## Security & privacy
 - No network access at all. Captured content never leaves your PC.
 - Does not launch other programs or touch the registry / startup items.
