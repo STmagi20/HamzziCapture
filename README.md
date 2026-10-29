@@ -1,0 +1,2 @@
+# HamzziCapture
+Screenshot Capture Program
