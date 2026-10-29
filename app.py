@@ -331,7 +331,7 @@ T = dict(
     dis_bg="#F6EBDD", dis_fg="#CDB59C", warn="#B45309",
 )
 FONT_KO = "Malgun Gothic" if IS_WIN else "DejaVu Sans"
-FONT_EN = "Segoe UI" if IS_WIN else "DejaVu Sans"
+FONT_EN = FONT_KO  # 영문도 맑은 고딕으로 통일 (한글이 섞여도 글꼴이 달라 보이지 않게)
 FONT = FONT_KO
 
 
