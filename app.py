@@ -27,7 +27,7 @@ IS_WIN = sys.platform == "win32"
 
 # 앱 정보 (정보 창에 표시)
 APP_NAME = "햄찌캡처"
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 AUTHOR = "Studying Hamzzi"
 
 if IS_WIN:  # 고DPI 환경에서 캡처 좌표가 어긋나지 않도록
@@ -1049,9 +1049,10 @@ class App:
                  font=(FONT, 8)).pack(side="right")
         self.strip = tk.Canvas(parent, width=px(STRIP_W), height=px(54), bg=T["bg"], highlightthickness=0)
         self.strip.pack()
+        self.x_hover = None  # 마우스가 올라간 삭제(X) 버튼의 칸 번호
         self.strip.bind("<Button-1>", self.on_strip_click)
-        self.strip.bind("<Motion>", lambda e: self.strip.config(
-            cursor="hand2" if self.slot_at(e.x) is not None else "arrow"))
+        self.strip.bind("<Motion>", self.on_strip_move)
+        self.strip.bind("<Leave>", lambda e: self.set_x_hover(None))
 
     def slot_box(self, i):
         W, gap = px(STRIP_W), px(6)
@@ -1065,11 +1066,52 @@ class App:
                 return i
         return None
 
+    def x_center(self, i):
+        """칸 i의 삭제(X) 버튼 중심 좌표 (썸네일 안쪽 오른쪽 위)."""
+        x0, w = self.slot_box(i)
+        return x0 + w - px(13), px(3) + px(12)
+
+    def x_hit(self, i, x, y):
+        cx, cy = self.x_center(i)
+        return (x - cx) ** 2 + (y - cy) ** 2 <= px(10) ** 2
+
+    def x_at(self, x, y):
+        i = self.slot_at(x)
+        return i if i is not None and self.x_hit(i, x, y) else None
+
+    def set_x_hover(self, i):
+        if i != self.x_hover:
+            self.x_hover = i
+            self.draw_strip()
+
+    def on_strip_move(self, e):
+        xi = self.x_at(e.x, e.y)
+        self.strip.config(cursor="hand2" if self.slot_at(e.x) is not None else "arrow")
+        self.set_x_hover(xi)
+
     def on_strip_click(self, e):
         i = self.slot_at(e.x)
-        if i is not None:
+        if i is None:
+            return
+        if self.x_hit(i, e.x, e.y):
+            self.delete_capture(i)
+        else:
             self.sel = i
             self.refresh_all()
+
+    def delete_capture(self, i):
+        """최근 캡처 i번을 삭제한다. 보던 캡처를 지우면 다음(없으면 이전) 캡처를 선택."""
+        if not 0 <= i < len(self.history):
+            return
+        del self.history[i]
+        if not self.history:
+            self.sel = None
+        elif self.sel == i:
+            self.sel = min(i, len(self.history) - 1)
+        elif self.sel is not None and self.sel > i:
+            self.sel -= 1
+        self.x_hover = None
+        self.refresh_all()
 
     def draw_strip(self):
         cv, H = self.strip, px(54)
@@ -1092,6 +1134,16 @@ class App:
             if i == 0:  # 가장 최근
                 round_rect(cv, x1 - px(32), H - px(21), x1 - px(6), H - px(8), px(5), fill=T["text"], outline=T["text"])
                 cv.create_text(x1 - px(19), H - px(14.5), text="방금", fill="#FFFFFF", font=(FONT, 7, "bold"))
+            # 삭제(X) 버튼
+            cx, cy = self.x_center(i)
+            r = px(9)
+            hv = self.x_hover == i
+            cv.create_oval(cx - r, cy - r, cx + r, cy + r, fill=T["accent"] if hv else T["card"],
+                           outline=T["accent"] if hv else T["line"])
+            k = px(3.5)
+            xc = "#FFFFFF" if hv else T["sub"]
+            cv.create_line(cx - k, cy - k, cx + k, cy + k, fill=xc, width=2, capstyle="round")
+            cv.create_line(cx - k, cy + k, cx + k, cy - k, fill=xc, width=2, capstyle="round")
 
     def refresh_all(self):
         self.show_preview()
@@ -1099,6 +1151,8 @@ class App:
         img = self.last
         if img is not None:
             self.info.config(text=f"{self.sel + 1}번째 캡처 · {img.width} × {img.height} px")
+        else:
+            self.info.config(text="")
         for b in self.action_btns:
             b.set_enabled(img is not None)
 
