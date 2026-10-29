@@ -1,5 +1,8 @@
 # 햄찌캡처 (Windows)
 
+<img width="799" height="508" alt="Hamzzicapture" src="https://github.com/user-attachments/assets/c2492c09-75e6-4305-ac78-357d830852e5" />
+
+
 ## 실행
 1. Python 3.9+ 설치 (python.org, "Add to PATH" 체크)
 2. `pip install -r requirements.txt`
