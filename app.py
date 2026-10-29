@@ -94,6 +94,19 @@ def active_window_rect():
     return rect.left, rect.top, rect.right, rect.bottom
 
 
+def own_window_active():
+    """지금 맨 앞(활성) 창이 이 프로그램(햄찌캡처)의 창이면 True."""
+    if not IS_WIN:
+        return False
+    u = ctypes.windll.user32
+    hwnd = u.GetForegroundWindow()
+    if not hwnd:
+        return False
+    pid = wintypes.DWORD()
+    u.GetWindowThreadProcessId(wintypes.HWND(hwnd), ctypes.byref(pid))
+    return pid.value == os.getpid()
+
+
 def copy_image_to_clipboard(img):
     """PIL 이미지를 Windows 클립보드(DIB)에 복사."""
     if not IS_WIN:
@@ -929,12 +942,12 @@ class App:
                 if kind == "failed":
                     self.note.config(fg=T["warn"], text="Ctrl+Shift+" + ", ".join(extra) + " 단축키를 쓸 수 없어요. 이미 실행 중인 캡처 프로그램이 있다면 먼저 종료해 주세요.")
                 else:
-                    self.start(kind)
+                    self.start(kind, hotkey=True)
         except queue.Empty:
             pass
         self.root.after(100, self.poll)
 
-    def start(self, mode):
+    def start(self, mode, hotkey=False):
         if self.busy:
             return
         self.busy = True
@@ -942,6 +955,10 @@ class App:
             delay = max(0, int(self.delay.get()))
         except (tk.TclError, ValueError):
             delay = 0
+        if hotkey and mode == "window" and own_window_active():
+            # 햄찌캡처 자신의 창(메인/편집기/정보)이 활성 상태면 숨기지 않고 그대로 캡처
+            self.root.after(150 + delay * 1000, lambda: self.capture(mode))
+            return
         self.root.withdraw()
         self.root.after(250 + delay * 1000, lambda: self.capture(mode))
 
