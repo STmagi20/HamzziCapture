@@ -21,13 +21,13 @@ from ctypes import wintypes
 from tkinter import colorchooser, filedialog, messagebox, simpledialog, ttk
 
 import assets
+from i18n import detect_lang, set_lang, tr
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageGrab, ImageOps, ImageTk
 
 IS_WIN = sys.platform == "win32"
 
 # 앱 정보 (정보 창에 표시)
-APP_NAME = "햄찌캡처"
-VERSION = "1.0.1"
+VERSION = "1.1.0"
 AUTHOR = "Studying Hamzzi"
 
 if IS_WIN:  # 고DPI 환경에서 캡처 좌표가 어긋나지 않도록
@@ -110,7 +110,7 @@ def own_window_active():
 def copy_image_to_clipboard(img):
     """PIL 이미지를 Windows 클립보드(DIB)에 복사."""
     if not IS_WIN:
-        raise RuntimeError("클립보드 복사는 Windows에서만 지원합니다.")
+        raise RuntimeError(tr("err_win_only"))
     buf = io.BytesIO()
     img.convert("RGB").save(buf, "BMP")
     data = buf.getvalue()[14:]  # BMP 파일 헤더 제거 -> DIB
@@ -128,21 +128,21 @@ def copy_image_to_clipboard(img):
 
     GMEM_MOVEABLE, CF_DIB = 0x0002, 8
     if not user32.OpenClipboard(None):
-        raise RuntimeError("클립보드를 열 수 없습니다.")
+        raise RuntimeError(tr("err_clip_open"))
     try:
         user32.EmptyClipboard()
         h = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(data))
         if not h:
-            raise RuntimeError("메모리를 확보하지 못했습니다.")
+            raise RuntimeError(tr("err_mem_alloc"))
         p = kernel32.GlobalLock(h)
         if not p:
             kernel32.GlobalFree(h)
-            raise RuntimeError("메모리를 잠그지 못했습니다.")
+            raise RuntimeError(tr("err_mem_lock"))
         ctypes.memmove(p, data, len(data))
         kernel32.GlobalUnlock(h)
         if not user32.SetClipboardData(CF_DIB, h):
             kernel32.GlobalFree(h)  # 클립보드가 가져가지 않았으므로 직접 해제
-            raise RuntimeError("클립보드에 데이터를 넣지 못했습니다.")
+            raise RuntimeError(tr("err_clip_set"))
     finally:
         user32.CloseClipboard()
 
@@ -167,7 +167,7 @@ def save_image(img, path):
     elif ext in (".jpg", ".jpeg"):
         img.convert("RGB").save(path, "JPEG", quality=95)
     else:
-        raise ValueError("PNG(.png) 또는 JPG(.jpg) 확장자로 저장해 주세요.")
+        raise ValueError(tr("err_ext"))
 
 
 def default_save_dir():
@@ -280,7 +280,7 @@ class RegionSelector:
         self.label_id = self.canvas.create_text(0, 0, anchor="sw", fill="white", font=("Malgun Gothic", 10, "bold"))
         self.canvas.create_text(
             w // 2, 30, fill="white", font=("Malgun Gothic", 12, "bold"),
-            text="드래그하여 영역 선택  |  Esc / 우클릭: 취소",
+            text=tr("region_hint"),
         )
 
         self.canvas.bind("<ButtonPress-1>", self.press)
@@ -330,7 +330,16 @@ T = dict(
     primary="#F4B676", primary_h="#EFA55D", on_primary="#4A2A18",
     dis_bg="#F6EBDD", dis_fg="#CDB59C", warn="#B45309",
 )
-FONT = "Malgun Gothic" if IS_WIN else "DejaVu Sans"
+FONT_KO = "Malgun Gothic" if IS_WIN else "DejaVu Sans"
+FONT_EN = "Segoe UI" if IS_WIN else "DejaVu Sans"
+FONT = FONT_KO
+
+
+def apply_language(lang):
+    """언어와 글꼴을 함께 바꾼다 (위젯은 만들 때의 FONT를 쓰므로 화면을 다시 만들어야 반영된다)."""
+    global FONT
+    set_lang(lang)
+    FONT = FONT_KO if lang == "ko" else FONT_EN
 UI = {"s": 1.0}  # DPI 배율
 
 # 메인 창 레이아웃 (100% 배율 기준, 전체 폭 800px = 좌우 여백 26*2 + 368 + 20 + 360)
@@ -530,11 +539,14 @@ class Stepper(tk.Frame):
         mk("−", lambda: self.step(-1)).pack(side="left")
         # 라벨 폭은 '0' 글자 기준 개수라 한글이 잘린다 -> 가장 긴 문구를 실제로 재서 폭을 정한다
         f = tkfont.Font(family=FONT, size=9, weight="bold")
-        n = math.ceil(max(f.measure(t) for t in ("지연 없음", "지연 30초")) / f.measure("0")) + 2
+        longest = (tr("delay_none"), tr("delay_n", n=30))
+        n = math.ceil(max(f.measure(txt) for txt in longest) / f.measure("0")) + 2
         self.val = tk.Label(self, bg=T["card"], fg=T["text"], font=(FONT, 9, "bold"), width=n)
         self.val.pack(side="left")
         mk("+", lambda: self.step(1)).pack(side="left")
-        var.trace_add("write", lambda *a: self.refresh())
+        self._tid = var.trace_add("write", lambda *a: self.refresh())
+        # 화면을 다시 만들 때 낡은 위젯이 변수 변경을 계속 듣지 않도록 해제
+        self.bind("<Destroy>", lambda e: var.trace_remove("write", self._tid) if e.widget is self else None)
         self.refresh()
 
     def _lbl(self, text, cmd):
@@ -556,7 +568,10 @@ class Stepper(tk.Frame):
             v = int(self.var.get())
         except (tk.TclError, ValueError):
             v = 0
-        self.val.config(text=f"지연 {v}초" if v else "지연 없음")
+        try:
+            self.val.config(text=tr("delay_n", n=v) if v else tr("delay_none"))
+        except tk.TclError:  # 위젯이 이미 사라진 경우
+            pass
 
 
 class InfoBtn(tk.Canvas):
@@ -584,8 +599,8 @@ class InfoBtn(tk.Canvas):
 # 편집기
 # ----------------------------------------------------------------------------
 TOOLS = [
-    ("pen", "펜"), ("highlight", "형광펜"), ("line", "선"), ("arrow", "화살표"),
-    ("rect", "사각형"), ("ellipse", "원"), ("text", "텍스트"), ("mosaic", "모자이크"),
+    ("pen", "tool_pen"), ("highlight", "tool_highlight"), ("line", "tool_line"), ("arrow", "tool_arrow"),
+    ("rect", "tool_rect"), ("ellipse", "tool_ellipse"), ("text", "tool_text"), ("mosaic", "tool_mosaic"),
 ]
 COLORS = ["#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#0a84ff", "#af52de", "#000000", "#ffffff"]
 
@@ -603,7 +618,7 @@ class Editor:
         self.preview = None
 
         self.win = tk.Toplevel(root)
-        self.win.title("햄찌캡처 편집기")
+        self.win.title(tr("editor_title"))
         self.win.configure(bg=T["bg"])
         sw, sh = self.win.winfo_screenwidth(), self.win.winfo_screenheight()
         self.scale = min(1.0, (sw * 0.9) / self.img.width, (sh * 0.75) / self.img.height)
@@ -648,7 +663,7 @@ class Editor:
         seg.pack(side="left")
         self.tool_lbls = {}
         for key, label in TOOLS:
-            l = tk.Label(seg, text=label, font=(FONT, 9), padx=px(9), pady=px(4), cursor="hand2",
+            l = tk.Label(seg, text=tr(label), font=(FONT, 9), padx=px(9), pady=px(4), cursor="hand2",
                          bg=T["bg"], fg=T["sub"])
             l.pack(side="left")
             l.bind("<Button-1>", lambda e, k=key: self.select_tool(k))
@@ -669,15 +684,15 @@ class Editor:
         tk.Frame(bar, bg=T["line"], width=1).pack(side="left", fill="y", padx=px(10))
 
         # 굵기
-        tk.Label(bar, text="굵기", bg=T["card"], fg=T["sub"], font=(FONT, 9)).pack(side="left")
+        tk.Label(bar, text=tr("width_label"), bg=T["card"], fg=T["sub"], font=(FONT, 9)).pack(side="left")
         tk.Scale(bar, from_=1, to=20, orient="horizontal", variable=self.width, length=px(90), showvalue=False,
                  bg=T["card"], troughcolor=T["line"], highlightthickness=0, bd=0, sliderrelief="flat",
                  activebackground=T["accent"], sliderlength=px(14), width=px(8)).pack(side="left", padx=px(4))
 
         # 우측 버튼
-        Btn(bar, "저장", self.save, "save", "primary", 84, 32, T["card"]).pack(side="right", padx=(px(6), 0))
-        Btn(bar, "복사", self.copy, "copy", "secondary", 84, 32, T["card"]).pack(side="right", padx=px(3))
-        Btn(bar, "취소", self.undo, "undo", "secondary", 84, 32, T["card"]).pack(side="right", padx=px(3))
+        Btn(bar, tr("btn_save"), self.save, "save", "primary", 84, 32, T["card"]).pack(side="right", padx=(px(6), 0))
+        Btn(bar, tr("btn_copy"), self.copy, "copy", "secondary", 84, 32, T["card"]).pack(side="right", padx=px(3))
+        Btn(bar, tr("btn_undo"), self.undo, "undo", "secondary", 84, 32, T["card"]).pack(side="right", padx=px(3))
 
     def select_tool(self, key):
         self.tool.set(key)
@@ -718,7 +733,7 @@ class Editor:
         self.canvas.delete("all")
         self.canvas.config(width=w, height=h)
         self.canvas.create_image(0, 0, anchor="nw", image=self.tk_img)
-        self.status.config(text=f" {self.img.width} x {self.img.height}px   |   Ctrl+Z 취소 · Ctrl+C 복사 · Ctrl+S 저장 · Esc 닫기")
+        self.status.config(text=tr("editor_status", w=self.img.width, h=self.img.height))
 
     def commit(self, new_img):
         self.history.append(self.img)
@@ -738,7 +753,7 @@ class Editor:
         self.pts = [self.to_img(e)]
         self.cpts = [(e.x, e.y)]
         if self.tool.get() == "text":
-            text = simpledialog.askstring("텍스트", "입력할 내용:", parent=self.win)
+            text = simpledialog.askstring(tr("text_dialog_title"), tr("text_dialog_prompt"), parent=self.win)
             if text:
                 self.commit(apply_text(self.img, self.pts[0], text, self.color, self.width.get()))
             self.pts = []
@@ -778,9 +793,9 @@ class Editor:
     def copy(self):
         try:
             copy_image_to_clipboard(self.img)
-            self.status.config(text=" 클립보드에 복사했어요")
+            self.status.config(text=tr("editor_copied"))
         except Exception as ex:
-            messagebox.showerror("복사 실패", str(ex), parent=self.win)
+            messagebox.showerror(tr("err_copy_title"), str(ex), parent=self.win)
 
     def save(self):
         path = filedialog.asksaveasfilename(
@@ -792,9 +807,9 @@ class Editor:
         try:
             save_image(self.img, path)
         except Exception as ex:
-            messagebox.showerror("저장 실패", str(ex), parent=self.win)
+            messagebox.showerror(tr("err_save_title"), str(ex), parent=self.win)
             return
-        self.status.config(text=f" 저장했어요: {path}")
+        self.status.config(text=tr("editor_saved", path=path))
 
 
 # ----------------------------------------------------------------------------
@@ -825,7 +840,6 @@ class App:
     def __init__(self):
         self.root = tk.Tk()
         UI["s"] = self.root.tk.call("tk", "scaling") / (96 / 72)  # DPI 배율
-        self.root.title("햄찌캡처")
         self.root.configure(bg=T["bg"])
         self.root.resizable(False, False)
         # 창/작업표시줄 아이콘 (햄스터 얼굴)
@@ -837,8 +851,26 @@ class App:
         self.history = []  # 최근 캡처 목록 (최신이 앞), 최대 MAX_HISTORY개
         self.sel = None    # 현재 선택된 항목 번호
 
+        self.lang = detect_lang()
+        apply_language(self.lang)
+        self.about = None
+        self.hotkey_failed = None
+        self.build_ui()
+
+        if IS_WIN:
+            threading.Thread(target=hotkey_loop, args=(self.q,), daemon=True).start()
+        self.root.after(100, self.poll)
+
+    def build_ui(self):
+        """메인 창 화면을 (다시) 만든다. 언어를 바꾸면 이 함수를 다시 호출한다."""
+        old = getattr(self, "main_frame", None)
+        if old is not None:
+            old.destroy()
+        self.x_hover = None
+        self.root.title(tr("app_name"))
         f = tk.Frame(self.root, bg=T["bg"], padx=px(26), pady=px(18))
         f.pack()
+        self.main_frame = f
 
         # 헤더: 햄스터 + 이름 / 지연 시간
         head = tk.Frame(f, bg=T["bg"])
@@ -846,8 +878,8 @@ class App:
         tk.Label(head, image=hamster("face", 44), bg=T["bg"]).pack(side="left", padx=(0, px(10)))
         titles = tk.Frame(head, bg=T["bg"])
         titles.pack(side="left")
-        tk.Label(titles, text="햄찌캡처", bg=T["bg"], fg=T["text"], font=(FONT, 15, "bold")).pack(anchor="w")
-        tk.Label(titles, text="무엇을 담을까요?", bg=T["bg"], fg=T["sub"], font=(FONT, 9)).pack(anchor="w")
+        tk.Label(titles, text=tr("app_name"), bg=T["bg"], fg=T["text"], font=(FONT, 15, "bold")).pack(anchor="w")
+        tk.Label(titles, text=tr("subtitle"), bg=T["bg"], fg=T["sub"], font=(FONT, 9)).pack(anchor="w")
         InfoBtn(head, self.show_about).pack(side="right", padx=(px(10), 0))
         Stepper(head, self.delay).pack(side="right")
 
@@ -862,16 +894,16 @@ class App:
         grid = tk.Frame(left, bg=T["bg"])
         grid.pack()
         tiles = [
-            ("region", "영역 선택", "Ctrl+Shift+A", "region"),
-            ("monitor", "현재 모니터", "Ctrl+Shift+M", "monitor"),
-            ("window", "활성 창", "Ctrl+Shift+W", "window"),
-            ("monitors", "모든 모니터", "Ctrl+Shift+F", "full"),
+            ("region", tr("tile_region"), "Ctrl+Shift+A", "region"),
+            ("monitor", tr("tile_monitor"), "Ctrl+Shift+M", "monitor"),
+            ("window", tr("tile_window"), "Ctrl+Shift+W", "window"),
+            ("monitors", tr("tile_all"), "Ctrl+Shift+F", "full"),
         ]
         for i, (ic, title, hint, mode) in enumerate(tiles):
             Tile(grid, ic, title, hint, lambda m=mode: self.start(m), w=176).grid(
                 row=i // 2, column=i % 2, padx=px(4), pady=px(4))
         self.build_strip(left)
-        self.note = tk.Label(left, text="단축키는 창을 최소화해도 동작해요", bg=T["bg"], fg=T["sub"],
+        self.note = tk.Label(left, text=tr("note_hotkeys"), bg=T["bg"], fg=T["sub"],
                              font=(FONT, 8), wraplength=px(LEFT_W), justify="left", anchor="w")
         self.note.pack(fill="x", pady=(px(16), 0))
 
@@ -884,37 +916,54 @@ class App:
         brow = tk.Frame(right, bg=T["bg"])
         brow.pack(fill="x")
         self.action_btns = [
-            Btn(brow, "편집", self.edit_last, "edit", "primary", 116, 40),
-            Btn(brow, "복사", self.copy_last, "copy", "secondary", 116, 40),
-            Btn(brow, "저장", self.save_last, "save", "secondary", 116, 40),
+            Btn(brow, tr("btn_edit"), self.edit_last, "edit", "primary", 116, 40),
+            Btn(brow, tr("btn_copy"), self.copy_last, "copy", "secondary", 116, 40),
+            Btn(brow, tr("btn_save"), self.save_last, "save", "secondary", 116, 40),
         ]
         for i, b_ in enumerate(self.action_btns):
             b_.pack(side="left", expand=True, padx=(0 if i == 0 else px(4), 0))
             b_.set_enabled(False)
+        self.update_note()
         self.refresh_all()
 
-        if IS_WIN:
-            threading.Thread(target=hotkey_loop, args=(self.q,), daemon=True).start()
-        self.root.after(100, self.poll)
+    def update_note(self):
+        """하단 안내 문구. 단축키 등록에 실패했다면 경고를 보여준다."""
+        if self.hotkey_failed:
+            keys = "Ctrl+Shift+" + ", ".join(self.hotkey_failed)
+            self.note.config(fg=T["warn"], text=tr("hotkey_failed", keys=keys))
 
-    def show_about(self):
-        """제작 정보 창."""
-        if getattr(self, "about", None) is not None and self.about.winfo_exists():
+    def set_language(self, lang):
+        """언어 전환: 화면을 새 언어로 다시 만든다 (캡처 기록은 그대로)."""
+        if lang == self.lang:
+            return
+        pos = None
+        if self.about is not None and self.about.winfo_exists():
+            pos = (self.about.winfo_x(), self.about.winfo_y())
+            self.about.destroy()
+        self.lang = lang
+        apply_language(lang)
+        self.build_ui()
+        if pos is not None:
+            self.show_about(pos)
+
+    def show_about(self, pos=None):
+        """제작 정보 창. pos=(x, y)를 주면 그 위치에 연다(언어 전환 직후)."""
+        if self.about is not None and self.about.winfo_exists():
             self.about.lift()
             return
         top = self.about = tk.Toplevel(self.root)
-        top.title(f"{APP_NAME} 정보")
+        top.title(tr("about_title", app=tr("app_name")))
         top.configure(bg=T["bg"])
         top.resizable(False, False)
         top.transient(self.root)
         body = tk.Frame(top, bg=T["bg"], padx=px(28), pady=px(22))
         body.pack()
         tk.Label(body, image=hamster("body", 120), bg=T["bg"]).pack()
-        tk.Label(body, text=APP_NAME, bg=T["bg"], fg=T["text"], font=(FONT, 16, "bold")).pack(pady=(px(6), 0))
-        tk.Label(body, text=f"버전 {VERSION}", bg=T["bg"], fg=T["sub"], font=(FONT, 9)).pack()
+        tk.Label(body, text=tr("app_name"), bg=T["bg"], fg=T["text"], font=(FONT, 16, "bold")).pack(pady=(px(6), 0))
+        tk.Label(body, text=tr("about_version", v=VERSION), bg=T["bg"], fg=T["sub"], font=(FONT, 9)).pack()
 
-        rows = [("제작", AUTHOR), ("도움", "Claude (Anthropic)"), ("이미지", "AI 생성"),
-                ("라이선스", "MIT License (소스 코드)")]
+        rows = [(tr("about_author"), AUTHOR), (tr("about_help"), "Claude (Anthropic)"),
+                (tr("about_images"), tr("about_ai")), (tr("about_license"), tr("about_license_val"))]
         W, rh = px(300), px(32)
         H = rh * len(rows) + px(12)
         cv = tk.Canvas(body, width=W, height=H, bg=T["bg"], highlightthickness=0)
@@ -925,13 +974,31 @@ class App:
             if i:
                 cv.create_line(px(14), y - rh / 2, W - px(14), y - rh / 2, fill=T["line"])
             cv.create_text(px(16), y, text=k, anchor="w", fill=T["sub"], font=(FONT, 9))
-            cv.create_text(px(78), y, text=v, anchor="w", fill=T["text"], font=(FONT, 9, "bold"))
+            cv.create_text(px(92), y, text=v, anchor="w", fill=T["text"], font=(FONT, 9, "bold"))
 
-        Btn(body, "닫기", top.destroy, None, "primary", 140, 38).pack(pady=(px(16), 0))
+        # 언어 선택 (한국어 | English)
+        lrow = tk.Frame(body, bg=T["bg"])
+        lrow.pack(pady=(px(14), 0))
+        tk.Label(lrow, text=tr("about_lang"), bg=T["bg"], fg=T["sub"], font=(FONT, 9)).pack(side="left", padx=(0, px(10)))
+        seg = tk.Frame(lrow, bg=T["line"], padx=px(2), pady=px(2))
+        seg.pack(side="left")
+        for code, label in (("ko", "한국어"), ("en", "English")):
+            on = code == self.lang
+            lb = tk.Label(seg, text=label, font=(FONT, 9, "bold" if on else "normal"), padx=px(14), pady=px(4),
+                          bg=T["card"] if on else T["line"], fg=T["accent_text"] if on else T["sub"],
+                          cursor="arrow" if on else "hand2")
+            lb.pack(side="left")
+            if not on:
+                lb.bind("<Button-1>", lambda e, c=code: self.set_language(c))
+
+        Btn(body, tr("btn_close"), top.destroy, None, "primary", 140, 38).pack(pady=(px(14), 0))
         top.bind("<Escape>", lambda e: top.destroy())
         top.update_idletasks()
-        x = self.root.winfo_x() + (self.root.winfo_width() - top.winfo_width()) // 2
-        y = self.root.winfo_y() + (self.root.winfo_height() - top.winfo_height()) // 2
+        if pos is None:
+            x = self.root.winfo_x() + (self.root.winfo_width() - top.winfo_width()) // 2
+            y = self.root.winfo_y() + (self.root.winfo_height() - top.winfo_height()) // 2
+        else:
+            x, y = pos
         top.geometry(f"+{max(0, x)}+{max(0, y)}")
         top.focus_force()
 
@@ -940,7 +1007,8 @@ class App:
             while True:
                 kind, extra = self.q.get_nowait()
                 if kind == "failed":
-                    self.note.config(fg=T["warn"], text="Ctrl+Shift+" + ", ".join(extra) + " 단축키를 쓸 수 없어요. 이미 실행 중인 캡처 프로그램이 있다면 먼저 종료해 주세요.")
+                    self.hotkey_failed = extra
+                    self.update_note()
                 else:
                     self.start(kind, hotkey=True)
         except queue.Empty:
@@ -975,7 +1043,7 @@ class App:
             elif mode == "window":
                 rect = active_window_rect()
                 if not rect:
-                    raise RuntimeError("활성 창을 찾지 못했습니다.")
+                    raise RuntimeError(tr("err_no_window"))
                 l, t, r, b = rect
                 box = (max(0, l - origin[0]), max(0, t - origin[1]),
                        min(shot.width, r - origin[0]), min(shot.height, b - origin[1]))
@@ -985,7 +1053,7 @@ class App:
         except Exception as ex:
             self.busy = False
             self.root.deiconify()
-            messagebox.showerror("캡처 실패", str(ex))
+            messagebox.showerror(tr("err_capture_title"), str(ex))
 
     def select_region(self, shot, origin, mons):
         """모니터마다 오버레이를 하나씩 띄운다 (한 모니터 안에서 드래그)."""
@@ -1025,7 +1093,7 @@ class App:
         round_rect(cv, 1, 1, W - 1, H - 1, px(14), fill=T["card"], outline=T["line"])
         if self.last is None:
             cv.create_image(W / 2, H / 2 - px(22), image=hamster("body", 130))
-            cv.create_text(W / 2, H / 2 + px(70), text="캡처하면 여기에 표시돼요", fill=T["sub"], font=(FONT, 9))
+            cv.create_text(W / 2, H / 2 + px(70), text=tr("preview_empty"), fill=T["sub"], font=(FONT, 9))
         else:
             pad = px(10)
             thumb = self.last.convert("RGB")
@@ -1044,8 +1112,8 @@ class App:
     def build_strip(self, parent):
         hd = tk.Frame(parent, bg=T["bg"])
         hd.pack(fill="x", pady=(px(14), px(4)))
-        tk.Label(hd, text="최근 캡처", bg=T["bg"], fg=T["sub"], font=(FONT, 9, "bold")).pack(side="left")
-        tk.Label(hd, text=f"{MAX_HISTORY}개까지 보관 · 클릭해서 다시 열기", bg=T["bg"], fg=T["sub"],
+        tk.Label(hd, text=tr("recent"), bg=T["bg"], fg=T["sub"], font=(FONT, 9, "bold")).pack(side="left")
+        tk.Label(hd, text=tr("recent_hint", n=MAX_HISTORY), bg=T["bg"], fg=T["sub"],
                  font=(FONT, 8)).pack(side="right")
         self.strip = tk.Canvas(parent, width=px(STRIP_W), height=px(54), bg=T["bg"], highlightthickness=0)
         self.strip.pack()
@@ -1133,7 +1201,7 @@ class App:
             cv.create_image((x0 + x1) / 2, H / 2, image=ph)
             if i == 0:  # 가장 최근
                 round_rect(cv, x1 - px(32), H - px(21), x1 - px(6), H - px(8), px(5), fill=T["text"], outline=T["text"])
-                cv.create_text(x1 - px(19), H - px(14.5), text="방금", fill="#FFFFFF", font=(FONT, 7, "bold"))
+                cv.create_text(x1 - px(19), H - px(14.5), text=tr("tag_new"), fill="#FFFFFF", font=(FONT, 7, "bold"))
             # 삭제(X) 버튼
             cx, cy = self.x_center(i)
             r = px(9)
@@ -1150,7 +1218,7 @@ class App:
         self.draw_strip()
         img = self.last
         if img is not None:
-            self.info.config(text=f"{self.sel + 1}번째 캡처 · {img.width} × {img.height} px")
+            self.info.config(text=tr("info_capture", n=self.sel + 1, w=img.width, h=img.height))
         else:
             self.info.config(text="")
         for b in self.action_btns:
@@ -1177,9 +1245,9 @@ class App:
             return
         try:
             copy_image_to_clipboard(self.last)
-            self.info.config(text="클립보드에 복사했어요")
+            self.info.config(text=tr("copied"))
         except Exception as ex:
-            messagebox.showerror("복사 실패", str(ex))
+            messagebox.showerror(tr("err_copy_title"), str(ex))
 
     def save_last(self):
         if self.last is None:
@@ -1192,9 +1260,9 @@ class App:
             try:
                 save_image(self.last, path)
             except Exception as ex:
-                messagebox.showerror("저장 실패", str(ex))
+                messagebox.showerror(tr("err_save_title"), str(ex))
                 return
-            self.info.config(text=f"저장했어요: {os.path.basename(path)}")
+            self.info.config(text=tr("saved", name=os.path.basename(path)))
 
     def run(self):
         self.root.mainloop()
@@ -1217,6 +1285,7 @@ if __name__ == "__main__":
     if already_running():
         r = tk.Tk()
         r.withdraw()
-        messagebox.showinfo("햄찌캡처", "이미 실행 중입니다. 작업 표시줄에서 기존 창을 확인해 주세요.")
+        apply_language(detect_lang())
+        messagebox.showinfo(tr("app_name"), tr("already_running"))
         sys.exit(0)
     App().run()

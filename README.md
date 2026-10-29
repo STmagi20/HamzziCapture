@@ -1,5 +1,9 @@
 # 햄찌캡처 (Windows)
 
+**한국어** | [English](README.en.md)
+
+실행 시 Windows 표시 언어를 따라 한국어/영어로 시작하며, ⓘ 정보 창에서 언제든 전환할 수 있습니다.
+
 <img width="799" height="508" alt="Hamzzicapture" src="https://github.com/user-attachments/assets/c2492c09-75e6-4305-ac78-357d830852e5" />
 
 
