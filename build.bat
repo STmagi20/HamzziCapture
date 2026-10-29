@@ -5,16 +5,13 @@ cd /d "%~dp0"
 set PY=python
 where py >nul 2>nul && set PY=py
 
-echo [1/3] Installing packages...
+echo [1/2] Installing packages...
 %PY% -m pip install -r requirements.txt "pyinstaller>=6.0"
 if errorlevel 1 goto fail
 
-echo [2/3] Building exe...
+echo [2/2] Building exe...
 %PY% -m PyInstaller --noconsole --onefile --name HamzziCapture --icon hamzzi.ico app.py
 if errorlevel 1 goto fail
-
-echo [3/3] SHA-256 of the exe (write this in your release notes):
-certutil -hashfile dist\HamzziCapture.exe SHA256
 
 echo.
 echo Done: dist\HamzziCapture.exe

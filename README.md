@@ -37,9 +37,6 @@ zip을 **먼저 압축 해제**한 뒤 `build.bat` 더블클릭 → `dist\Hamzzi
 
 **exe 파일을 받았다면**
 - 코드 서명이 없어서 Windows SmartScreen 경고가 뜨거나 일부 백신이 오탐할 수 있습니다. 가장 안전한 방법은 소스를 받아 직접 `build.bat`으로 빌드하는 것입니다.
-- 배포된 exe는 릴리스 설명에 적힌 SHA-256 값과 비교해 확인하세요.
-  - PowerShell: `Get-FileHash .\HamzziCapture.exe -Algorithm SHA256`
-  - 명령 프롬프트: `certutil -hashfile HamzziCapture.exe SHA256`
 - 취약점이나 문제를 발견하면 GitHub 저장소의 Issues에 남겨 주세요.
 
 ## 제작 정보
