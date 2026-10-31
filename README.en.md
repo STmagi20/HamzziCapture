@@ -43,6 +43,16 @@ Running the program twice would clash on hotkeys, so a second launch shows a not
 - An unsigned exe may trigger SmartScreen warnings or antivirus false positives. Building from source with `build.bat` is the safest route.
 - Found an issue? Please open a GitHub Issue.
 
+## Changelog
+**v1.1.0**
+- Added Korean / English UI switching (auto-detects the Windows display language; change it in the ⓘ About window)
+- Unified the font to Malgun Gothic for both languages
+- Replaced the hamster images with the new camera-holding Hamzzi (app icon, favicon, About window image)
+- Added the English README
+
+**v1.0.1**
+- Added an × delete button to recent-capture thumbnails
+
 ## Credits
 - Made by: Studying Hamzzi
 - Made with Claude (Anthropic). The hamster images are AI-generated.
