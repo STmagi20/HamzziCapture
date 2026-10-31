@@ -4,6 +4,9 @@
 
 A simple screen-capture tool for Windows. The UI is available in Korean and English: it follows your Windows display language at startup, and you can switch anytime from the ⓘ (About) window.
 
+<img width="802" height="510" alt="Hamzzicapture02_ENG" src="https://github.com/user-attachments/assets/046e98d5-e210-4a14-87b1-dc2ea859939e" />
+
+
 ## Run
 1. Install Python 3.9+ (python.org, check "Add to PATH")
 2. `pip install -r requirements.txt`
