@@ -10,9 +10,11 @@
 import ctypes
 import datetime
 import io
+import json
 import math
 import os
 import queue
+import random
 import sys
 import threading
 import tkinter as tk
@@ -27,7 +29,7 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageGrab, ImageOps, 
 IS_WIN = sys.platform == "win32"
 
 # 앱 정보 (정보 창에 표시)
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 AUTHOR = "Studying Hamzzi"
 
 if IS_WIN:  # 고DPI 환경에서 캡처 좌표가 어긋나지 않도록
@@ -175,6 +177,38 @@ def default_save_dir():
     return pics if os.path.isdir(pics) else os.path.expanduser("~")
 
 
+def settings_path():
+    """설정 파일 위치: %APPDATA%\\HamzziCapture\\settings.json (언어 선택만 저장)."""
+    base = os.environ.get("APPDATA") or os.path.expanduser("~")
+    return os.path.join(base, "HamzziCapture", "settings.json")
+
+
+def load_settings():
+    try:
+        with open(settings_path(), encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_settings(data):
+    """설정을 저장한다. 실패해도 프로그램 동작에는 영향이 없으므로 조용히 넘어간다."""
+    path = settings_path()
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+    except OSError:
+        pass
+
+
+def start_lang():
+    """시작 언어: 저장한 선택이 있으면 그것, 없으면 Windows 표시 언어."""
+    lang = load_settings().get("lang")
+    return lang if lang in ("ko", "en") else detect_lang()
+
+
 def timestamp_name(ext="png"):
     return datetime.datetime.now().strftime("capture_%Y%m%d_%H%M%S.") + ext
 
@@ -200,6 +234,15 @@ def draw_arrow(draw, p0, p1, fill, width):
         draw.line([p1, end], fill=fill, width=width)
 
 
+MOSAIC_MIN_BLOCK = 12  # 모자이크 칸 최소 크기(px)
+MOSAIC_NOISE = 24      # 칸마다 더하는 밝기 흔들림(±)
+
+
+def mosaic_block(width):
+    """굵기에 따른 모자이크 칸 크기."""
+    return max(MOSAIC_MIN_BLOCK, width * 3)
+
+
 def apply_shape(img, tool, pts, color, width):
     """img(RGBA)에 도형을 그려 새 이미지를 반환."""
     rgb = hex_to_rgb(color)
@@ -218,10 +261,18 @@ def apply_shape(img, tool, pts, color, width):
         if r - l < 2 or b - t < 2:
             return img
         region = img.crop((l, t, r, b))
-        block = max(6, width * 3)
+        block = mosaic_block(width)
         small = region.resize(
             (max(1, (r - l) // block), max(1, (b - t) // block)), Image.BILINEAR
         )
+        # 칸마다 밝기를 무작위로 흔든다. 평균색만 남기면 글꼴을 아는 사람이 후보 글자를
+        # 똑같이 모자이크해 비교하는 방식으로 숫자·글자를 되살릴 수 있다.
+        pix = small.load()
+        for y in range(small.height):
+            for x in range(small.width):
+                cr, cg, cb, ca = pix[x, y]
+                n = random.randint(-MOSAIC_NOISE, MOSAIC_NOISE)
+                pix[x, y] = (min(255, max(0, cr + n)), min(255, max(0, cg + n)), min(255, max(0, cb + n)), ca)
         img = img.copy()
         img.paste(small.resize(region.size, Image.NEAREST), (l, t))
         return img
@@ -851,7 +902,7 @@ class App:
         self.history = []  # 최근 캡처 목록 (최신이 앞), 최대 MAX_HISTORY개
         self.sel = None    # 현재 선택된 항목 번호
 
-        self.lang = detect_lang()
+        self.lang = start_lang()
         apply_language(self.lang)
         self.about = None
         self.hotkey_failed = None
@@ -942,6 +993,7 @@ class App:
             self.about.destroy()
         self.lang = lang
         apply_language(lang)
+        save_settings({"lang": lang})
         self.build_ui()
         if pos is not None:
             self.show_about(pos)
@@ -1113,6 +1165,9 @@ class App:
         hd = tk.Frame(parent, bg=T["bg"])
         hd.pack(fill="x", pady=(px(14), px(4)))
         tk.Label(hd, text=tr("recent"), bg=T["bg"], fg=T["sub"], font=(FONT, 9, "bold")).pack(side="left")
+        self.clear_lbl = tk.Label(hd, text=tr("clear_all"), bg=T["bg"], font=(FONT, 8, "bold"))
+        self.clear_lbl.pack(side="right", padx=(px(8), 0))
+        self.clear_lbl.bind("<Button-1>", lambda e: self.clear_captures())
         tk.Label(hd, text=tr("recent_hint", n=MAX_HISTORY), bg=T["bg"], fg=T["sub"],
                  font=(FONT, 8)).pack(side="right")
         self.strip = tk.Canvas(parent, width=px(STRIP_W), height=px(54), bg=T["bg"], highlightthickness=0)
@@ -1181,6 +1236,20 @@ class App:
         self.x_hover = None
         self.refresh_all()
 
+    def clear_captures(self):
+        """최근 캡처를 모두 지운다 (확인 후)."""
+        if not self.history:
+            return
+        if not messagebox.askyesno(tr("clear_title"), tr("clear_confirm", n=len(self.history)), parent=self.root):
+            return
+        self.history.clear()
+        self.sel = None
+        self.x_hover = None
+        self.pv_img = None
+        self.strip_imgs = []
+        self.refresh_all()
+        self.info.config(text=tr("cleared"))
+
     def draw_strip(self):
         cv, H = self.strip, px(54)
         cv.delete("all")
@@ -1223,6 +1292,8 @@ class App:
             self.info.config(text="")
         for b in self.action_btns:
             b.set_enabled(img is not None)
+        on = bool(self.history)
+        self.clear_lbl.config(fg=T["accent_text"] if on else T["dis_fg"], cursor="hand2" if on else "arrow")
 
     def add_capture(self, image):
         self.history.insert(0, {"img": image.convert("RGBA")})
@@ -1285,7 +1356,7 @@ if __name__ == "__main__":
     if already_running():
         r = tk.Tk()
         r.withdraw()
-        apply_language(detect_lang())
+        apply_language(start_lang())
         messagebox.showinfo(tr("app_name"), tr("already_running"))
         sys.exit(0)
     App().run()

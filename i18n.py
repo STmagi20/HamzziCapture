@@ -23,6 +23,13 @@ STRINGS = {
     "recent": {"ko": "최근 캡처", "en": "Recent captures"},
     "recent_hint": {"ko": "{n}개까지 보관 · 클릭해서 다시 열기", "en": "Up to {n} kept · click to reopen"},
     "tag_new": {"ko": "방금", "en": "New"},
+    "clear_all": {"ko": "모두 지우기", "en": "Clear all"},
+    "clear_title": {"ko": "최근 캡처 지우기", "en": "Clear recent captures"},
+    "clear_confirm": {
+        "ko": "최근 캡처 {n}개를 모두 지울까요? 되돌릴 수 없어요.",
+        "en": "Clear all {n} recent captures? This can't be undone.",
+    },
+    "cleared": {"ko": "최근 캡처를 모두 지웠어요", "en": "All recent captures cleared"},
     "preview_empty": {"ko": "캡처하면 여기에 표시돼요", "en": "Your capture will appear here"},
     "info_capture": {"ko": "{n}번째 캡처 · {w} × {h} px", "en": "Capture #{n} · {w} × {h} px"},
     "btn_edit": {"ko": "편집", "en": "Edit"},

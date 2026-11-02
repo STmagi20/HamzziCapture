@@ -2,7 +2,7 @@
 
 [한국어](README.md) | **English**
 
-A simple screen-capture tool for Windows. The UI is available in Korean and English: it follows your Windows display language at startup, and you can switch anytime from the ⓘ (About) window.
+A simple screen-capture tool for Windows. The UI is available in Korean and English: it follows your Windows display language on first launch, and you can switch anytime from the ⓘ (About) window (your choice is remembered).
 
 ## Run
 1. Install Python 3.9+ (python.org, check "Add to PATH")
@@ -22,28 +22,35 @@ Double-click `build.bat` → `dist\HamzziCapture.exe` (with the hamster icon).
 
 After a capture, the main window shows only a preview. Press **Edit** to open the editor; you can also Copy / Save straight from the main window. While a Hamzzi Capture window is active, Ctrl+Shift+W captures the app itself.
 
-The 5 most recent captures are kept as thumbnails below the preview. Click one to reopen it, or click × to delete it. They live in memory only and disappear when you quit.
+The 5 most recent captures are kept as thumbnails below the preview. Click one to reopen it, click × to delete it, or use **Clear all** (with confirmation) to delete them all. They live in memory only and disappear when you quit.
 
 Editor: pen / highlighter / line / arrow / rectangle / ellipse / text / mosaic, Ctrl+Z undo, Ctrl+C copy, Ctrl+S save.
+
+The mosaic uses blocks of at least 12px and randomly shifts each block's brightness, making it hard to recover text by rendering candidate strings in a known font and comparing. For information that must stay hidden (passwords, etc.), painting over it completely with a thick pen or leaving it out of the capture is still the safest option.
 
 Running the program twice would clash on hotkeys, so a second launch shows a notice and exits.
 
 ## Language & font
-- At startup the UI is Korean if your Windows display language is Korean, otherwise English.
-- Use the **Language** buttons (한국어 | English) in the ⓘ About window to switch at any time; the change applies immediately. The choice is not saved, so the language is auto-detected again on the next launch.
+- On first launch the UI is Korean if your Windows display language is Korean, otherwise English.
+- Use the **Language** buttons (한국어 | English) in the ⓘ About window to switch at any time; the change applies immediately. Your choice is saved to `%APPDATA%\HamzziCapture\settings.json` and kept on the next launch. Delete that file to go back to auto-detection.
 - Both languages use the same Windows default font, **Malgun Gothic**, so the text looks consistent even when Korean and English are mixed. No extra fonts need to be installed.
 
 ## Security & privacy
 - No network access at all. Captured content never leaves your PC.
 - Does not launch other programs or touch the registry / startup items.
-- Files are saved only where you choose via "Save" (PNG/JPG).
+- Captures are saved only where you choose via "Save" (PNG/JPG). The only other file written is the settings file (`%APPDATA%\HamzziCapture\settings.json`, holding just the language) when you change the language.
 - Global hotkeys use Windows hotkey registration and react only to Ctrl+Shift+A/M/F/W; keystrokes are not logged.
-- Recent captures stay in memory until you quit. Close the app after capturing sensitive screens.
+- Recent captures stay in memory until you quit. After capturing sensitive screens, press **Clear all** or close the app.
 - Copied images stay on the clipboard (and possibly in Windows clipboard history, Win+V).
 - An unsigned exe may trigger SmartScreen warnings or antivirus false positives. Building from source with `build.bat` is the safest route.
 - Found an issue? Please open a GitHub Issue.
 
 ## Changelog
+**v1.2.0**
+- Added a **Clear all** button for recent captures (asks for confirmation)
+- Stronger mosaic: blocks of at least 12px with random per-block brightness, so text is hard to recover by guessing
+- The selected language is remembered across launches
+
 **v1.1.0**
 - Added Korean / English UI switching (auto-detects the Windows display language; change it in the ⓘ About window)
 - Unified the font to Malgun Gothic for both languages
