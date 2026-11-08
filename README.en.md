@@ -49,6 +49,10 @@ Running the program twice would clash on hotkeys, so a second launch shows a not
 - Found an issue? Please open a GitHub Issue.
 
 ## Changelog
+**v1.2.1**
+- Internal cleanup: the single source file is now split by role (app, editor, region, widgets, drawing, winapi, settings). Screens and features are unchanged.
+- Saving the settings file now merges with existing values instead of overwriting them
+
 **v1.2.0**
 - Added a **Clear all** button for recent captures (asks for confirmation)
 - Stronger mosaic: blocks of at least 12px with random per-block brightness, so text is hard to recover by guessing
