@@ -43,7 +43,7 @@ from winapi import (IS_WIN, active_window_rect, already_running, clipboard_image
                     set_app_id)
 
 # 앱 정보 (정보 창에 표시)
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 AUTHOR = "Studying Hamzzi"
 
 enable_dpi_awareness()  # 창을 만들기 전에 해야 한다

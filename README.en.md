@@ -53,6 +53,11 @@ Double-click `build.bat` → `dist\HamzziCapture.exe` (with the hamster icon).
 - If you find a vulnerability or other problem, please open an issue in the GitHub repository.
 
 ## Changelog
+**v1.3.1**
+- Fixed phone photos pasted with Ctrl+V appearing sideways (the photo's rotation info is now applied)
+- Fixed transparent areas turning black when copying or saving as JPG (they are now filled with white)
+- Internal code cleanup (screens and features unchanged)
+
 **v1.3.0**
 - Added **Settings** (⚙ in the header): save folder, auto copy / auto save right after capture
 - Added **Crop** to the editor
