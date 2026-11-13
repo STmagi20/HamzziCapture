@@ -147,13 +147,23 @@ def rounded_image(img, radius):
 # ----------------------------------------------------------------------------
 # 파일 저장
 # ----------------------------------------------------------------------------
+def to_rgb(img, bg=(255, 255, 255)):
+    """투명도를 흰 배경에 합성해 RGB로 만든다 (그냥 convert하면 투명한 곳이 검게 나온다)."""
+    if img.mode in ("RGBA", "LA", "PA") or (img.mode == "P" and "transparency" in img.info):
+        rgba = img.convert("RGBA")
+        out = Image.new("RGB", rgba.size, bg)
+        out.paste(rgba, mask=rgba.getchannel("A"))
+        return out
+    return img.convert("RGB")
+
+
 def save_image(img, path):
     """PNG/JPG로만 저장한다. 그 외 확장자는 이해하기 쉬운 오류로 알려준다."""
     ext = os.path.splitext(path)[1].lower()
     if ext == ".png":
         img.save(path, "PNG")
     elif ext in (".jpg", ".jpeg"):
-        img.convert("RGB").save(path, "JPEG", quality=95)
+        to_rgb(img).save(path, "JPEG", quality=95)
     else:
         raise ValueError(tr("err_ext"))
 

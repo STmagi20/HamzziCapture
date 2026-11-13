@@ -8,8 +8,9 @@ import os
 import sys
 from ctypes import wintypes
 
-from PIL import Image, ImageGrab
+from PIL import Image, ImageGrab, ImageOps
 
+from drawing import to_rgb
 from i18n import tr
 
 IS_WIN = sys.platform == "win32"
@@ -122,7 +123,7 @@ def copy_image_to_clipboard(img):
     if not IS_WIN:
         raise RuntimeError(tr("err_win_only"))
     buf = io.BytesIO()
-    img.convert("RGB").save(buf, "BMP")
+    to_rgb(img).save(buf, "BMP")
     data = buf.getvalue()[14:]  # BMP 파일 헤더 제거 -> DIB
 
     user32, kernel32 = ctypes.windll.user32, ctypes.windll.kernel32
@@ -170,7 +171,7 @@ def clipboard_image():
             try:
                 with Image.open(path) as im:
                     im.load()
-                    return im.copy()
+                    return ImageOps.exif_transpose(im)  # 휴대폰 사진의 회전 정보 반영 (항상 새 이미지)
             except Exception:
                 continue
         return None
