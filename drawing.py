@@ -158,14 +158,17 @@ def to_rgb(img, bg=(255, 255, 255)):
 
 
 def save_image(img, path):
-    """PNG/JPG로만 저장한다. 그 외 확장자는 이해하기 쉬운 오류로 알려준다."""
+    """PNG/JPG로만 저장한다. 그 외 확장자는 이해하기 쉬운 오류로 알려준다. 폴더가 없으면 만든다."""
     ext = os.path.splitext(path)[1].lower()
+    if ext not in (".png", ".jpg", ".jpeg"):
+        raise ValueError(tr("err_ext"))
+    folder = os.path.dirname(path)
+    if folder:
+        os.makedirs(folder, exist_ok=True)
     if ext == ".png":
         img.save(path, "PNG")
-    elif ext in (".jpg", ".jpeg"):
-        to_rgb(img).save(path, "JPEG", quality=95)
     else:
-        raise ValueError(tr("err_ext"))
+        to_rgb(img).save(path, "JPEG", quality=95)
 
 
 def default_save_dir():

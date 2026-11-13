@@ -4,10 +4,10 @@ from tkinter import colorchooser, simpledialog
 
 from PIL import Image, ImageTk
 
-from drawing import apply_shape, apply_text, crop_image, save_image
+from drawing import apply_shape, apply_text, crop_image
 from i18n import tr
-from widgets import FONT, T, Btn, ask_save_path, bind_ctrl_keys, px, show_error
-from winapi import IS_WIN, copy_image_to_clipboard
+from widgets import FONT, T, Btn, ask_save_path, bind_ctrl_keys, copy_or_warn, px, save_or_warn
+from winapi import IS_WIN
 
 # (도구 키, 문자열 키)
 TOOLS = [
@@ -220,20 +220,10 @@ class Editor:
 
     # --- 출력 ---
     def copy(self):
-        try:
-            copy_image_to_clipboard(self.img)
-        except Exception as ex:
-            show_error("err_copy_title", ex, self.win)
-            return
-        self.status.config(text=tr("editor_copied"))
+        if copy_or_warn(self.img, self.win):
+            self.status.config(text=tr("editor_copied"))
 
     def save(self):
         path = ask_save_path(self.win)
-        if not path:
-            return
-        try:
-            save_image(self.img, path)
-        except Exception as ex:
-            show_error("err_save_title", ex, self.win)
-            return
-        self.status.config(text=tr("editor_saved", path=path))
+        if path and save_or_warn(self.img, path, self.win):
+            self.status.config(text=tr("editor_saved", path=path))

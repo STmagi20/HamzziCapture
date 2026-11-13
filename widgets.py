@@ -7,10 +7,10 @@ from tkinter import filedialog, messagebox
 from PIL import Image, ImageDraw, ImageTk
 
 import assets
-from drawing import hex_to_rgb, timestamp_name
+from drawing import hex_to_rgb, save_image, timestamp_name
 from i18n import tr
 from settings import save_dir
-from winapi import IS_WIN
+from winapi import IS_WIN, copy_image_to_clipboard
 
 # 테마 색상 (키별 쓰임새는 개발 문서의 테마 색상 표 참고)
 T = dict(
@@ -217,8 +217,8 @@ class Btn(HoverCanvas):
         self.create_text(x, H / 2, text=self.text, anchor="w", font=self.font, fill=fg)
 
 
-class InfoBtn(HoverCanvas):
-    """헤더 오른쪽의 둥근 ⓘ 버튼."""
+class RoundBtn(HoverCanvas):
+    """헤더의 작은 원형 버튼. 하위 클래스가 draw_mark(중심, 색)로 가운데 표시를 그린다."""
 
     def __init__(self, parent, command):
         super().__init__(parent, 28, 28, command)
@@ -229,23 +229,24 @@ class InfoBtn(HoverCanvas):
         s, hv = px(self.w), self.hover
         self.create_oval(2, 2, s - 2, s - 2, fill=T["tint"] if hv else T["card"],
                          outline=T["accent"] if hv else T["line"], width=2)
-        self.create_text(s / 2, s / 2, text="i", font=("Georgia", 12, "italic bold"),
-                         fill=T["accent_text"] if hv else T["text"])
+        self.draw_mark(s / 2, T["accent_text"] if hv else T["text"])
+
+    def draw_mark(self, c, color):
+        raise NotImplementedError
 
 
-class SettingsBtn(HoverCanvas):
-    """헤더의 둥근 설정(톱니) 버튼."""
+class InfoBtn(RoundBtn):
+    """ⓘ (제작 정보) 버튼."""
 
-    def __init__(self, parent, command):
-        super().__init__(parent, 28, 28, command)
-        self.draw()
+    def draw_mark(self, c, color):
+        self.create_text(c, c, text="i", font=("Georgia", 12, "italic bold"), fill=color)
 
-    def draw(self):
-        self.delete("all")
-        s, hv = px(self.w), self.hover
-        self.create_oval(2, 2, s - 2, s - 2, fill=T["tint"] if hv else T["card"],
-                         outline=T["accent"] if hv else T["line"], width=2)
-        self.create_image(s / 2, s / 2, image=icon("gear", T["accent_text"] if hv else T["text"], 16))
+
+class SettingsBtn(RoundBtn):
+    """톱니 (설정) 버튼."""
+
+    def draw_mark(self, c, color):
+        self.create_image(c, c, image=icon("gear", color, 16))
 
 
 class Stepper(tk.Frame):
@@ -292,8 +293,62 @@ class Stepper(tk.Frame):
 
 
 # ----------------------------------------------------------------------------
-# 공용 대화상자 (메인 창과 편집기가 함께 쓴다)
+# 작은 창 (정보 창, 설정 창)
 # ----------------------------------------------------------------------------
+def open_dialog(root, title, padx, pady):
+    """크기 고정 보조 창을 만든다. (창, 내용을 담을 프레임)을 돌려준다."""
+    top = tk.Toplevel(root)
+    top.title(title)
+    top.configure(bg=T["bg"])
+    top.resizable(False, False)
+    top.transient(root)
+    body = tk.Frame(top, bg=T["bg"], padx=px(padx), pady=px(pady))
+    body.pack()
+    return top, body
+
+
+def finish_dialog(top, body, root, pos=None):
+    """닫기 버튼과 Esc를 달고, pos=(x, y) 또는 root 가운데에 띄운다."""
+    Btn(body, tr("btn_close"), top.destroy, None, "primary", 140, 38).pack(pady=(px(14), 0))
+    top.bind("<Escape>", lambda e: top.destroy())
+    top.update_idletasks()
+    if pos is None:
+        x = root.winfo_x() + (root.winfo_width() - top.winfo_width()) // 2
+        y = root.winfo_y() + (root.winfo_height() - top.winfo_height()) // 2
+    else:
+        x, y = pos
+    top.geometry(f"+{max(0, x)}+{max(0, y)}")
+    top.focus_force()
+
+
+def alive(win):
+    """창이 있고 아직 닫히지 않았는지."""
+    return win is not None and win.winfo_exists()
+
+
+# ----------------------------------------------------------------------------
+# 복사 / 저장 (메인 창과 편집기가 함께 쓴다)
+# ----------------------------------------------------------------------------
+def copy_or_warn(img, parent):
+    """클립보드에 복사한다. 실패하면 오류 창을 띄우고 False."""
+    try:
+        copy_image_to_clipboard(img)
+    except Exception as ex:
+        show_error("err_copy_title", ex, parent)
+        return False
+    return True
+
+
+def save_or_warn(img, path, parent):
+    """path에 저장한다. 실패하면 오류 창을 띄우고 False."""
+    try:
+        save_image(img, path)
+    except Exception as ex:
+        show_error("err_save_title", ex, parent)
+        return False
+    return True
+
+
 def ask_save_path(parent):
     """PNG/JPG 저장 위치를 묻는다. 취소하면 빈 문자열."""
     return filedialog.asksaveasfilename(

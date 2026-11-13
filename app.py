@@ -3,8 +3,9 @@
 기능
 - 영역 선택 캡처 / 전체 화면(모든 모니터) / 현재 모니터 / 활성 창 캡처
 - 지연 캡처(초)
-- 편집기: 펜, 형광펜, 선, 화살표, 사각형, 원, 텍스트, 모자이크, 실행 취소
-- 저장(PNG/JPG) + 클립보드 복사
+- 편집기: 펜, 형광펜, 선, 화살표, 사각형, 원, 텍스트, 모자이크, 자르기, 실행 취소
+- 저장(PNG/JPG) + 클립보드 복사, 캡처 직후 자동 복사/저장 (설정 창)
+- 메인 창 Ctrl+C / Ctrl+S / Ctrl+V (클립보드 이미지 불러오기)
 - 전역 단축키: Ctrl+Shift+A (영역), M (현재 모니터), F (모든 모니터), W (활성 창)
 
 파일 구성
@@ -28,17 +29,18 @@ from tkinter import messagebox
 from PIL import Image, ImageOps, ImageTk
 
 import assets
-from drawing import rounded_image, save_image, unique_path
+from drawing import rounded_image, unique_path
 from editor import Editor
 from i18n import set_lang, tr
 from prefs import open_settings
 from region import RegionSelector
 from settings import auto_actions, configured_dir, save_dir, start_lang, update_settings
-from widgets import (FONT, T, UI, Btn, InfoBtn, SettingsBtn, Stepper, Tile, ask_save_path,
-                     bind_ctrl_keys, hamster, px, round_rect, show_error)
-from winapi import (IS_WIN, active_window_rect, already_running, clipboard_image, copy_image_to_clipboard,
-                    crop_screen, enable_dpi_awareness, get_monitors, grab_screen, hotkey_loop,
-                    own_window_active, set_app_id)
+from widgets import (FONT, T, UI, Btn, InfoBtn, SettingsBtn, Stepper, Tile, alive, ask_save_path,
+                     bind_ctrl_keys, copy_or_warn, finish_dialog, hamster, open_dialog, px, round_rect,
+                     save_or_warn, show_error)
+from winapi import (IS_WIN, active_window_rect, already_running, clipboard_image, crop_screen,
+                    enable_dpi_awareness, get_monitors, grab_screen, hotkey_loop, own_window_active,
+                    set_app_id)
 
 # 앱 정보 (정보 창에 표시)
 VERSION = "1.3.0"
@@ -165,10 +167,10 @@ class App:
         if lang == self.lang:
             return
         pos = None
-        if self.about is not None and self.about.winfo_exists():
+        if alive(self.about):
             pos = (self.about.winfo_x(), self.about.winfo_y())
             self.about.destroy()
-        if self.prefs is not None and self.prefs.winfo_exists():
+        if alive(self.prefs):
             self.prefs.destroy()  # 낡은 언어로 남지 않게 닫는다
         self.lang = lang
         set_lang(lang)
@@ -178,23 +180,18 @@ class App:
             self.show_about(pos)
 
     def show_settings(self):
-        if self.prefs is not None and self.prefs.winfo_exists():
+        if alive(self.prefs):
             self.prefs.lift()
             return
         self.prefs = open_settings(self.root)
 
     def show_about(self, pos=None):
         """제작 정보 창. pos=(x, y)를 주면 그 위치에 연다(언어 전환 직후)."""
-        if self.about is not None and self.about.winfo_exists():
+        if alive(self.about):
             self.about.lift()
             return
-        top = self.about = tk.Toplevel(self.root)
-        top.title(tr("about_title", app=tr("app_name")))
-        top.configure(bg=T["bg"])
-        top.resizable(False, False)
-        top.transient(self.root)
-        body = tk.Frame(top, bg=T["bg"], padx=px(28), pady=px(22))
-        body.pack()
+        top, body = open_dialog(self.root, tr("about_title", app=tr("app_name")), 28, 22)
+        self.about = top
         tk.Label(body, image=hamster("body", 120), bg=T["bg"]).pack()
         tk.Label(body, text=tr("app_name"), bg=T["bg"], fg=T["text"], font=(FONT, 16, "bold")).pack(pady=(px(6), 0))
         tk.Label(body, text=tr("about_version", v=VERSION), bg=T["bg"], fg=T["sub"], font=(FONT, 9)).pack()
@@ -228,16 +225,7 @@ class App:
             if not on:
                 lb.bind("<Button-1>", lambda e, c=code: self.set_language(c))
 
-        Btn(body, tr("btn_close"), top.destroy, None, "primary", 140, 38).pack(pady=(px(14), 0))
-        top.bind("<Escape>", lambda e: top.destroy())
-        top.update_idletasks()
-        if pos is None:
-            x = self.root.winfo_x() + (self.root.winfo_width() - top.winfo_width()) // 2
-            y = self.root.winfo_y() + (self.root.winfo_height() - top.winfo_height()) // 2
-        else:
-            x, y = pos
-        top.geometry(f"+{max(0, x)}+{max(0, y)}")
-        top.focus_force()
+        finish_dialog(top, body, self.root, pos)
 
     # ------------------------------------------------------------------
     # 캡처 흐름: start -> (지연) -> capture -> [select_region] -> finish
@@ -318,33 +306,27 @@ class App:
         self.root.lift()
         if image is not None:
             self.add_capture(image)  # 편집기는 자동으로 열지 않고 미리보기만 표시
-            self.auto_actions(self.last)
+            self.after_capture(self.last)
 
-    def auto_actions(self, img):
-        """설정에 따라 캡처 직후 클립보드 복사 / 저장 폴더에 저장."""
+    def after_capture(self, img):
+        """설정에 따라 캡처 직후 클립보드 복사 / 저장 폴더에 저장 (폴더가 없으면 만든다)."""
         want_copy, want_save = auto_actions()
-        copied, saved = False, None
-        if want_copy:
-            try:
-                copy_image_to_clipboard(img)
-                copied = True
-            except Exception as ex:
-                show_error("err_copy_title", ex, self.root)
+        copied = want_copy and copy_or_warn(img, self.root)
+        saved = None
         if want_save:
-            try:
-                folder = configured_dir() or save_dir()
-                os.makedirs(folder, exist_ok=True)
-                path = unique_path(folder)
-                save_image(img, path)
+            path = unique_path(configured_dir() or save_dir())
+            if save_or_warn(img, path, self.root):
                 saved = os.path.basename(path)
-            except Exception as ex:
-                show_error("err_save_title", ex, self.root)
         if copied and saved:
-            self.info.config(text=tr("auto_both", name=saved))
+            self.say("auto_both", name=saved)
         elif saved:
-            self.info.config(text=tr("auto_saved", name=saved))
+            self.say("auto_saved", name=saved)
         elif copied:
-            self.info.config(text=tr("auto_copied"))
+            self.say("auto_copied")
+
+    def say(self, key, **kw):
+        """미리보기 아래 안내 문구를 바꾼다."""
+        self.info.config(text=tr(key, **kw))
 
     # ------------------------------------------------------------------
     # 미리보기 / 최근 캡처 목록
@@ -469,7 +451,7 @@ class App:
         self.draw_strip()
         img = self.last
         if img is not None:
-            self.info.config(text=tr("info_capture", n=self.sel + 1, w=img.width, h=img.height))
+            self.say("info_capture", n=self.sel + 1, w=img.width, h=img.height)
         else:
             self.info.config(text="")
         for b in self.action_btns:
@@ -507,7 +489,7 @@ class App:
         self.sel = None
         self.x_hover = None
         self.refresh_all()
-        self.info.config(text=tr("cleared"))
+        self.say("cleared")
 
     # ------------------------------------------------------------------
     # 편집 / 복사 / 저장
@@ -524,36 +506,24 @@ class App:
         Editor(self.root, entry["img"], on_close=on_close)
 
     def copy_last(self):
-        if self.last is None:
-            return
-        try:
-            copy_image_to_clipboard(self.last)
-        except Exception as ex:
-            show_error("err_copy_title", ex, self.root)
-            return
-        self.info.config(text=tr("copied"))
+        if self.last is not None and copy_or_warn(self.last, self.root):
+            self.say("copied")
 
     def paste_clipboard(self):
         """Ctrl+V: 클립보드의 이미지를 새 캡처로 불러온다."""
         img = clipboard_image()
         if img is None:
-            self.info.config(text=tr("paste_none"))
+            self.say("paste_none")
             return
         self.add_capture(img)
-        self.info.config(text=tr("pasted"))
+        self.say("pasted")
 
     def save_last(self):
         if self.last is None:
             return
         path = ask_save_path(self.root)
-        if not path:
-            return
-        try:
-            save_image(self.last, path)
-        except Exception as ex:
-            show_error("err_save_title", ex, self.root)
-            return
-        self.info.config(text=tr("saved", name=os.path.basename(path)))
+        if path and save_or_warn(self.last, path, self.root):
+            self.say("saved", name=os.path.basename(path))
 
 
 def monitor_at(mons, x, y):

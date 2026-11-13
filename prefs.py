@@ -5,18 +5,12 @@ from tkinter import filedialog
 
 from i18n import tr
 from settings import configured_dir, load_settings, save_dir, update_settings
-from widgets import FONT, T, Btn, px
+from widgets import FONT, T, Btn, finish_dialog, open_dialog, px
 
 
-def open_settings(root, parent=None):
+def open_settings(root):
     """설정 창을 만들어 돌려준다."""
-    top = tk.Toplevel(root)
-    top.title(tr("settings_title"))
-    top.configure(bg=T["bg"])
-    top.resizable(False, False)
-    top.transient(parent or root)
-    body = tk.Frame(top, bg=T["bg"], padx=px(26), pady=px(20))
-    body.pack()
+    top, body = open_dialog(root, tr("settings_title"), 26, 20)
 
     # --- 저장 폴더 ---
     tk.Label(body, text=tr("set_save_dir"), bg=T["bg"], fg=T["text"], font=(FONT, 10, "bold")).pack(anchor="w")
@@ -59,13 +53,7 @@ def open_settings(root, parent=None):
 
     tk.Label(body, text=tr("set_note"), bg=T["bg"], fg=T["sub"], font=(FONT, 8), wraplength=px(360),
              justify="left", anchor="w").pack(anchor="w", pady=(px(14), 0))
-    Btn(body, tr("btn_close"), top.destroy, None, "primary", 140, 38).pack(pady=(px(14), 0))
 
     refresh()
-    top.bind("<Escape>", lambda e: top.destroy())
-    top.update_idletasks()
-    x = root.winfo_x() + (root.winfo_width() - top.winfo_width()) // 2
-    y = root.winfo_y() + (root.winfo_height() - top.winfo_height()) // 2
-    top.geometry(f"+{max(0, x)}+{max(0, y)}")
-    top.focus_force()
+    finish_dialog(top, body, root)
     return top
