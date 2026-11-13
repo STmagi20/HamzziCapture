@@ -302,5 +302,24 @@ def ask_save_path(parent):
     )
 
 
+def bind_ctrl_keys(win, keys):
+    """Ctrl+글자 단축키를 건다. keys = {"c": 함수, ...}.
+
+    한글 입력 상태에서는 Ctrl+C가 'c'가 아닌 한글 글자로 들어와 <Control-c> 바인딩이 안 먹는다.
+    그래서 Windows에서는 글자가 아니라 키 자체의 번호(가상 키 코드)로 판별한다.
+    """
+    def on_key(e):
+        if e.state & 0x1:  # Shift가 같이 눌렸으면 다른 단축키
+            return None
+        ch = chr(e.keycode).lower() if IS_WIN and 65 <= e.keycode <= 90 else (e.keysym or "").lower()
+        fn = keys.get(ch)
+        if fn is None:
+            return None
+        fn()
+        return "break"
+
+    win.bind("<Control-KeyPress>", on_key)
+
+
 def show_error(title_key, ex, parent):
     messagebox.showerror(tr(title_key), str(ex), parent=parent)

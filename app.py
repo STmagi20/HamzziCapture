@@ -34,9 +34,9 @@ from i18n import set_lang, tr
 from prefs import open_settings
 from region import RegionSelector
 from settings import auto_actions, configured_dir, save_dir, start_lang, update_settings
-from widgets import (FONT, T, UI, Btn, InfoBtn, SettingsBtn, Stepper, Tile, ask_save_path, hamster,
-                     px, round_rect, show_error)
-from winapi import (IS_WIN, active_window_rect, already_running, copy_image_to_clipboard,
+from widgets import (FONT, T, UI, Btn, InfoBtn, SettingsBtn, Stepper, Tile, ask_save_path,
+                     bind_ctrl_keys, hamster, px, round_rect, show_error)
+from winapi import (IS_WIN, active_window_rect, already_running, clipboard_image, copy_image_to_clipboard,
                     crop_screen, enable_dpi_awareness, get_monitors, grab_screen, hotkey_loop,
                     own_window_active, set_app_id)
 
@@ -83,6 +83,8 @@ class App:
         self.prefs = None
         self.hotkey_failed = None
         self.build_ui()
+
+        bind_ctrl_keys(self.root, {"c": self.copy_last, "s": self.save_last, "v": self.paste_clipboard})
 
         if IS_WIN:
             threading.Thread(target=hotkey_loop, args=(self.q,), daemon=True).start()
@@ -530,6 +532,15 @@ class App:
             show_error("err_copy_title", ex, self.root)
             return
         self.info.config(text=tr("copied"))
+
+    def paste_clipboard(self):
+        """Ctrl+V: 클립보드의 이미지를 새 캡처로 불러온다."""
+        img = clipboard_image()
+        if img is None:
+            self.info.config(text=tr("paste_none"))
+            return
+        self.add_capture(img)
+        self.info.config(text=tr("pasted"))
 
     def save_last(self):
         if self.last is None:

@@ -6,7 +6,7 @@ from PIL import Image, ImageTk
 
 from drawing import apply_shape, apply_text, save_image
 from i18n import tr
-from widgets import FONT, T, Btn, ask_save_path, px, show_error
+from widgets import FONT, T, Btn, ask_save_path, bind_ctrl_keys, px, show_error
 from winapi import IS_WIN, copy_image_to_clipboard
 
 # (도구 키, 문자열 키)
@@ -46,9 +46,7 @@ class Editor:
         self.canvas.bind("<ButtonPress-1>", self.on_press)
         self.canvas.bind("<B1-Motion>", self.on_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
-        self.win.bind("<Control-z>", lambda e: self.undo())
-        self.win.bind("<Control-c>", lambda e: self.copy())
-        self.win.bind("<Control-s>", lambda e: self.save())
+        bind_ctrl_keys(self.win, {"z": self.undo, "c": self.copy, "s": self.save})
         self.win.bind("<Escape>", lambda e: self.close())
         self.win.protocol("WM_DELETE_WINDOW", self.close)
 

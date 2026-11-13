@@ -8,7 +8,7 @@ import os
 import sys
 from ctypes import wintypes
 
-from PIL import ImageGrab
+from PIL import Image, ImageGrab
 
 from i18n import tr
 
@@ -155,6 +155,26 @@ def copy_image_to_clipboard(img):
             raise RuntimeError(tr("err_clip_set"))
     finally:
         user32.CloseClipboard()
+
+
+def clipboard_image():
+    """클립보드의 이미지(또는 복사한 이미지 파일)를 PIL 이미지로. 없으면 None."""
+    if not IS_WIN:
+        return None
+    try:
+        data = ImageGrab.grabclipboard()
+    except Exception:
+        return None
+    if isinstance(data, list):  # 탐색기에서 파일을 복사한 경우: 첫 번째 이미지 파일
+        for path in data:
+            try:
+                with Image.open(path) as im:
+                    im.load()
+                    return im.copy()
+            except Exception:
+                continue
+        return None
+    return data if isinstance(data, Image.Image) else None
 
 
 # ----------------------------------------------------------------------------

@@ -82,6 +82,8 @@ STRINGS = {
     "about_ai": {"ko": "AI 생성", "en": "AI-generated"},
     "about_license_val": {"ko": "MIT License (소스 코드)", "en": "MIT License (source code)"},
     "about_lang": {"ko": "언어", "en": "Language"},
+    "pasted": {"ko": "클립보드의 이미지를 불러왔어요", "en": "Loaded the image from the clipboard"},
+    "paste_none": {"ko": "클립보드에 이미지가 없어요", "en": "No image on the clipboard"},
     "settings_title": {"ko": "설정", "en": "Settings"},
     "set_save_dir": {"ko": "저장 폴더", "en": "Save folder"},
     "set_default_tag": {"ko": "(기본)", "en": "(default)"},
