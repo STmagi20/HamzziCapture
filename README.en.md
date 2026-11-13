@@ -27,7 +27,11 @@ After a capture, the main window shows only a preview. Press **Edit** to open th
 
 The 5 most recent captures are kept as thumbnails below the preview. Click one to reopen it, click × to delete it, or use **Clear all** (with confirmation) to delete them all. They live in memory only and disappear when you quit.
 
-Editor: pen / highlighter / line / arrow / rectangle / ellipse / text / mosaic, Ctrl+Z undo, Ctrl+C copy, Ctrl+S save.
+Main-window shortcuts: **Ctrl+C** copy, **Ctrl+S** save, **Ctrl+V** load an image from the clipboard (or a copied image file) as a new capture. They also work while a Korean input mode is on.
+
+The **⚙ Settings** button in the header lets you choose a save folder and turn on **Copy to clipboard automatically** and/or **Save to the folder automatically (PNG)** right after each capture (both off by default). The Save button's file dialog also starts in that folder.
+
+Editor: pen / highlighter / line / arrow / rectangle / ellipse / text / mosaic / **crop**, Ctrl+Z undo, Ctrl+C copy, Ctrl+S save. Crop keeps the area you drag over, and Undo brings the full image back.
 
 The mosaic uses blocks of at least 12px and randomly shifts each block's brightness, making it hard to recover text by rendering candidate strings in a known font and comparing. For information that must stay hidden (passwords, etc.), painting over it completely with a thick pen or leaving it out of the capture is still the safest option.
 
@@ -41,7 +45,7 @@ Running the program twice would clash on hotkeys, so a second launch shows a not
 ## Security & privacy
 - No network access at all. Captured content never leaves your PC.
 - Does not launch other programs or touch the registry / startup items.
-- Captures are saved only where you choose via "Save" (PNG/JPG). The only other file written is the settings file (`%APPDATA%\HamzziCapture\settings.json`, holding just the language) when you change the language.
+- Captures are saved only where you choose via "Save" (PNG/JPG), or, **only if you turn on auto-save**, to your chosen save folder. The only other file written is the settings file (`%APPDATA%\HamzziCapture\settings.json`: language, save folder, and whether auto copy/save is on).
 - Global hotkeys use Windows hotkey registration and react only to Ctrl+Shift+A/M/F/W; keystrokes are not logged.
 - Recent captures stay in memory until you quit. After capturing sensitive screens, press **Clear all** or close the app.
 - Copied images stay on the clipboard (and possibly in Windows clipboard history, Win+V).
@@ -49,6 +53,12 @@ Running the program twice would clash on hotkeys, so a second launch shows a not
 - Found an issue? Please open a GitHub Issue.
 
 ## Changelog
+**v1.3.0**
+- Added **Settings** (⚙ in the header): choose a save folder, and optionally copy / save automatically right after each capture (off by default)
+- Added a **Crop** tool to the editor
+- Main window now supports Ctrl+C (copy), Ctrl+S (save) and Ctrl+V (load clipboard image)
+- Fixed the editor's Ctrl+Z/C/S not responding while a Korean input mode was on
+
 **v1.2.1**
 - Internal cleanup: the single source file is now split by role (app, editor, region, widgets, drawing, winapi, settings). Screens and features are unchanged.
 - Saving the settings file now merges with existing values instead of overwriting them
