@@ -1,10 +1,10 @@
-"""편집기 창: 펜, 형광펜, 선, 화살표, 사각형, 원, 텍스트, 모자이크, 실행 취소, 복사, 저장."""
+"""편집기 창: 펜, 형광펜, 선, 화살표, 사각형, 원, 텍스트, 모자이크, 자르기, 실행 취소, 복사, 저장."""
 import tkinter as tk
 from tkinter import colorchooser, simpledialog
 
 from PIL import Image, ImageTk
 
-from drawing import apply_shape, apply_text, save_image
+from drawing import apply_shape, apply_text, crop_image, save_image
 from i18n import tr
 from widgets import FONT, T, Btn, ask_save_path, bind_ctrl_keys, px, show_error
 from winapi import IS_WIN, copy_image_to_clipboard
@@ -13,9 +13,10 @@ from winapi import IS_WIN, copy_image_to_clipboard
 TOOLS = [
     ("pen", "tool_pen"), ("highlight", "tool_highlight"), ("line", "tool_line"), ("arrow", "tool_arrow"),
     ("rect", "tool_rect"), ("ellipse", "tool_ellipse"), ("text", "tool_text"), ("mosaic", "tool_mosaic"),
+    ("crop", "tool_crop"),
 ]
 COLORS = ["#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#0a84ff", "#af52de", "#000000", "#ffffff"]
-BOX_TOOLS = ("highlight", "mosaic")  # 드래그하는 동안 점선 상자로만 미리 보여주는 도구
+BOX_TOOLS = ("highlight", "mosaic", "crop")  # 드래그하는 동안 점선 상자로만 미리 보여주는 도구
 
 
 class Editor:
@@ -34,8 +35,7 @@ class Editor:
         self.win = tk.Toplevel(root)
         self.win.title(tr("editor_title"))
         self.win.configure(bg=T["bg"])
-        sw, sh = self.win.winfo_screenwidth(), self.win.winfo_screenheight()
-        self.scale = min(1.0, (sw * 0.9) / self.img.width, (sh * 0.75) / self.img.height)
+        self.fit_scale()
 
         self.build_toolbar()
         self.canvas = tk.Canvas(self.win, highlightthickness=0, bg=T["bg"], cursor="crosshair")
@@ -145,7 +145,13 @@ class Editor:
         if c:
             self.set_color(c)
 
+    def fit_scale(self):
+        """화면에 들어오는 표시 배율 (자르기로 이미지 크기가 바뀌면 다시 계산)."""
+        sw, sh = self.win.winfo_screenwidth(), self.win.winfo_screenheight()
+        self.scale = min(1.0, (sw * 0.9) / self.img.width, (sh * 0.75) / self.img.height)
+
     def refresh(self):
+        self.fit_scale()
         w, h = int(self.img.width * self.scale), int(self.img.height * self.scale)
         disp = self.img.resize((w, h), Image.LANCZOS) if self.scale != 1.0 else self.img
         self.tk_img = ImageTk.PhotoImage(disp)
@@ -204,7 +210,11 @@ class Editor:
         if not self.pts:
             return
         self.canvas.delete("preview")
-        if len(self.pts) > 1 or self.tool == "pen":
+        if self.tool == "crop":
+            cropped = crop_image(self.img, self.pts[0], self.pts[-1])
+            if cropped is not None:  # 너무 작은 영역(그냥 클릭)은 무시
+                self.commit(cropped)
+        elif len(self.pts) > 1 or self.tool == "pen":
             self.commit(apply_shape(self.img, self.tool, self.pts, self.color, self.width.get()))
         self.pts = []
 

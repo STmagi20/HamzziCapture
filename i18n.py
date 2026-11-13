@@ -63,6 +63,7 @@ STRINGS = {
     "tool_ellipse": {"ko": "원", "en": "Ellipse"},
     "tool_text": {"ko": "텍스트", "en": "Text"},
     "tool_mosaic": {"ko": "모자이크", "en": "Mosaic"},
+    "tool_crop": {"ko": "자르기", "en": "Crop"},
     "width_label": {"ko": "굵기", "en": "Width"},
     "editor_title": {"ko": "햄찌캡처 편집기", "en": "Hamzzi Capture Editor"},
     "editor_status": {

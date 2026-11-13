@@ -114,6 +114,16 @@ def apply_shape(img, tool, pts, color, width):
     return img
 
 
+def crop_image(img, p0, p1, min_size=8):
+    """두 점으로 잡은 영역만 남긴 새 이미지. 이미지 밖은 잘라내고, 너무 작으면 None."""
+    l, t, r, b = norm_box(p0, p1)
+    l, t = max(0, int(round(l))), max(0, int(round(t)))
+    r, b = min(img.width, int(round(r))), min(img.height, int(round(b)))
+    if r - l < min_size or b - t < min_size:
+        return None
+    return img.crop((l, t, r, b))
+
+
 def apply_text(img, pos, text, color, width):
     img = img.copy()
     ImageDraw.Draw(img).text(
