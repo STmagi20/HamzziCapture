@@ -2,7 +2,7 @@
 
 [한국어](README.md) | **English**
 
-A simple screen-capture tool for Windows. The UI is available in Korean and English: it follows your Windows display language on first launch, and you can switch anytime from the ⓘ (About) window (your choice is remembered).
+A screen-capture tool for Windows. Korean and English are supported.
 
 <img width="802" height="510" alt="Hamzzicapture02_ENG" src="https://github.com/user-attachments/assets/046e98d5-e210-4a14-87b1-dc2ea859939e" />
 
@@ -23,41 +23,41 @@ Double-click `build.bat` → `dist\HamzziCapture.exe` (with the hamster icon).
 | All monitors as one image | Ctrl+Shift+F |
 | Active window | Ctrl+Shift+W |
 
-After a capture, the main window shows only a preview. Press **Edit** to open the editor; you can also Copy / Save straight from the main window. While a Hamzzi Capture window is active, Ctrl+Shift+W captures the app itself.
-
-The 5 most recent captures are kept as thumbnails below the preview. Click one to reopen it, click × to delete it, or use **Clear all** (with confirmation) to delete them all. They live in memory only and disappear when you quit.
-
-Main-window shortcuts: **Ctrl+C** copy, **Ctrl+S** save, **Ctrl+V** load an image from the clipboard (or a copied image file) as a new capture. They also work while a Korean input mode is on.
-
-The **⚙ Settings** button in the header lets you choose a save folder and turn on **Copy to clipboard automatically** and/or **Save to the folder automatically (PNG)** right after each capture (both off by default). The Save button's file dialog also starts in that folder.
-
-Editor: pen / highlighter / line / arrow / rectangle / ellipse / text / mosaic / **crop**, Ctrl+Z undo, Ctrl+C copy, Ctrl+S save. Crop keeps the area you drag over, and Undo brings the full image back.
-
-The mosaic uses blocks of at least 12px and randomly shifts each block's brightness, making it hard to recover text by rendering candidate strings in a known font and comparing. For information that must stay hidden (passwords, etc.), painting over it completely with a thick pen or leaving it out of the capture is still the safest option.
-
-Running the program twice would clash on hotkeys, so a second launch shows a notice and exits.
+- After a capture, the main window shows a preview. Press **Edit** to open the editor; **Copy** and **Save** work right from the main window.
+- The 5 most recent captures stay as thumbnails below the preview, and you can click one to reopen it. **×** on a thumbnail deletes that one, and **Clear all** deletes them all (after confirmation). They disappear when you quit, and from the 6th capture on the oldest ones are dropped.
+- Main-window shortcuts: **Ctrl+C** copy, **Ctrl+S** save, **Ctrl+V** load an image from the clipboard (including a copied image file) as a new capture. They also work with a Korean input mode on.
+- **⚙ Settings** in the header: set the save folder and choose whether to copy to the clipboard and/or save a PNG to that folder right after each capture. The Save button's file dialog also starts in that folder.
+- Editor: pen / highlighter / line / arrow / rectangle / ellipse / text / mosaic / **crop**. Ctrl+Z undo, Ctrl+C copy, Ctrl+S save. Crop applies as soon as you drag over the area to keep, and Undo reverts it.
+- The mosaic uses blocks of at least 12px and varies each block's brightness a little at random, which makes the original text hard to recover. Still, for anything that must stay hidden, such as a password, it is safest to **paint over it completely with a thick pen or leave it out of the capture**.
+- Running two copies makes the hotkeys collide, so if one is already running, a second launch only shows a notice and exits.
 
 ## Language & font
-- On first launch the UI is Korean if your Windows display language is Korean, otherwise English.
-- Use the **Language** buttons (한국어 | English) in the ⓘ About window to switch at any time; the change applies immediately. Your choice is saved to `%APPDATA%\HamzziCapture\settings.json` and kept on the next launch. Delete that file to go back to auto-detection.
-- Both languages use the same Windows default font, **Malgun Gothic**, so the text looks consistent even when Korean and English are mixed. No extra fonts need to be installed.
+- If your display language is Korean, the UI is shown in Korean; otherwise it starts in English.
+- You can change the language with the Language button in the About window.
+- The font is Malgun Gothic.
 
 ## Security & privacy
-- No network access at all. Captured content never leaves your PC.
-- Does not launch other programs or touch the registry / startup items.
-- Captures are saved only where you choose via "Save" (PNG/JPG), or, **only if you turn on auto-save**, to your chosen save folder. The only other file written is the settings file (`%APPDATA%\HamzziCapture\settings.json`: language, save folder, and whether auto copy/save is on).
-- Global hotkeys use Windows hotkey registration and react only to Ctrl+Shift+A/M/F/W; keystrokes are not logged.
-- Recent captures stay in memory until you quit. After capturing sensitive screens, press **Clear all** or close the app.
-- Copied images stay on the clipboard (and possibly in Windows clipboard history, Win+V).
-- An unsigned exe may trigger SmartScreen warnings or antivirus false positives. Building from source with `build.bat` is the safest route.
-- Found an issue? Please open a GitHub Issue.
+**Data handling**
+- No network connection. Captured content never leaves your PC.
+- Does not run other programs or touch the registry or startup items.
+- Images are saved to the location you choose with "Save" (PNG/JPG). **If auto-save is on**, they are saved to the save folder you set.
+- The only file besides images is the settings file (`%APPDATA%\HamzziCapture\settings.json`), which holds the language, save folder, and whether auto copy/save is on.
+- Global hotkeys use Windows' hotkey registration and receive only Ctrl+Shift+A/M/F/W. Other keystrokes are not read.
+
+**Things to keep in mind**
+- The 5 most recent captures stay in memory until you quit. After capturing a screen with passwords or personal information, press **Clear all** or close the program.
+- A copied image stays on the clipboard until you copy something else, and may also remain in Windows clipboard history (Win+V).
+
+**If you downloaded the exe**
+- It is not code-signed, so Windows SmartScreen may warn and some antivirus programs may flag it. The safest route is to get the source and build it yourself with `build.bat`.
+- If you find a vulnerability or other problem, please open an issue in the GitHub repository.
 
 ## Changelog
 **v1.3.0**
-- Added **Settings** (⚙ in the header): choose a save folder, and optionally copy / save automatically right after each capture (off by default)
-- Added a **Crop** tool to the editor
+- Added **Settings** (⚙ in the header): save folder, auto copy / auto save right after capture
+- Added **Crop** to the editor
 - Main window now supports Ctrl+C (copy), Ctrl+S (save) and Ctrl+V (load clipboard image)
-- Fixed the editor's Ctrl+Z/C/S not responding while a Korean input mode was on
+- Fixed the editor's Ctrl+Z/C/S not working while a Korean input mode was on
 
 **v1.2.1**
 - Internal cleanup: the single source file is now split by role (app, editor, region, widgets, drawing, winapi, settings). Screens and features are unchanged.
@@ -65,7 +65,7 @@ Running the program twice would clash on hotkeys, so a second launch shows a not
 
 **v1.2.0**
 - Added a **Clear all** button for recent captures (asks for confirmation)
-- Stronger mosaic: blocks of at least 12px with random per-block brightness, so text is hard to recover by guessing
+- Stronger mosaic: blocks of at least 12px with random per-block brightness, so the text is harder to guess back
 - The selected language is remembered across launches
 
 **v1.1.0**
