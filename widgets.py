@@ -7,8 +7,9 @@ from tkinter import filedialog, messagebox
 from PIL import Image, ImageDraw, ImageTk
 
 import assets
-from drawing import default_save_dir, hex_to_rgb, timestamp_name
+from drawing import hex_to_rgb, timestamp_name
 from i18n import tr
+from settings import save_dir
 from winapi import IS_WIN
 
 # 테마 색상 (키별 쓰임새는 개발 문서의 테마 색상 표 참고)
@@ -109,6 +110,12 @@ def icon(name, color, size=18):
         d.arc((6 * u, 6.5 * u, 19 * u, 19.5 * u), start=-90, end=90, fill=col, width=w)
         line((12.5, 6.5), (6, 6.5))
         line((9, 3.5), (6, 6.5), (9, 9.5))
+    elif name == "gear":
+        d.ellipse((5.5 * u, 5.5 * u, 16.5 * u, 16.5 * u), outline=col, width=w)
+        d.ellipse((8.6 * u, 8.6 * u, 13.4 * u, 13.4 * u), outline=col, width=w)
+        for k in range(8):
+            a = math.radians(k * 45)
+            line((11 + 5.5 * math.cos(a), 11 + 5.5 * math.sin(a)), (11 + 8.6 * math.cos(a), 11 + 8.6 * math.sin(a)))
     elif name == "image":
         rrect(3, 4, 19, 18, 2.5)
         d.ellipse((6.4 * u, 7.4 * u, 9.6 * u, 10.6 * u), outline=col, width=w)
@@ -226,6 +233,21 @@ class InfoBtn(HoverCanvas):
                          fill=T["accent_text"] if hv else T["text"])
 
 
+class SettingsBtn(HoverCanvas):
+    """헤더의 둥근 설정(톱니) 버튼."""
+
+    def __init__(self, parent, command):
+        super().__init__(parent, 28, 28, command)
+        self.draw()
+
+    def draw(self):
+        self.delete("all")
+        s, hv = px(self.w), self.hover
+        self.create_oval(2, 2, s - 2, s - 2, fill=T["tint"] if hv else T["card"],
+                         outline=T["accent"] if hv else T["line"], width=2)
+        self.create_image(s / 2, s / 2, image=icon("gear", T["accent_text"] if hv else T["text"], 16))
+
+
 class Stepper(tk.Frame):
     """지연 시간 − 0초 + 컨트롤."""
 
@@ -275,7 +297,7 @@ class Stepper(tk.Frame):
 def ask_save_path(parent):
     """PNG/JPG 저장 위치를 묻는다. 취소하면 빈 문자열."""
     return filedialog.asksaveasfilename(
-        parent=parent, defaultextension=".png", initialdir=default_save_dir(),
+        parent=parent, defaultextension=".png", initialdir=save_dir(),
         initialfile=timestamp_name(), filetypes=[("PNG", "*.png"), ("JPEG", "*.jpg")],
     )
 

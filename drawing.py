@@ -155,3 +155,14 @@ def default_save_dir():
 
 def timestamp_name(ext="png"):
     return datetime.datetime.now().strftime("capture_%Y%m%d_%H%M%S.") + ext
+
+
+def unique_path(folder, ext="png"):
+    """folder 안에서 겹치지 않는 캡처 파일 경로 (같은 초에 두 번 찍어도 덮어쓰지 않는다)."""
+    base, ext = os.path.splitext(timestamp_name(ext))
+    path = os.path.join(folder, base + ext)
+    n = 2
+    while os.path.exists(path):
+        path = os.path.join(folder, f"{base}_{n}{ext}")
+        n += 1
+    return path

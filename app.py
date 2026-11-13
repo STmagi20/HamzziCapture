@@ -14,7 +14,8 @@
 - widgets.py  테마 색상, 아이콘, 버튼 등 커스텀 위젯, 저장 대화상자
 - drawing.py  도형·모자이크 그리기, 이미지 저장 (tkinter 없음)
 - winapi.py   Windows API: 화면 좌표, 클립보드, 전역 단축키, 중복 실행 방지
-- settings.py 설정 파일(언어) 읽기/쓰기
+- settings.py 설정 파일(언어, 저장 폴더, 자동 복사/저장) 읽기/쓰기
+- prefs.py    설정 창 (저장 폴더, 캡처 직후 자동 복사/저장)
 - i18n.py     한국어/영어 문자열, assets.py 내장 햄스터 이미지
 """
 import os
@@ -27,13 +28,14 @@ from tkinter import messagebox
 from PIL import Image, ImageOps, ImageTk
 
 import assets
-from drawing import rounded_image, save_image
+from drawing import rounded_image, save_image, unique_path
 from editor import Editor
 from i18n import set_lang, tr
+from prefs import open_settings
 from region import RegionSelector
-from settings import start_lang, update_settings
-from widgets import (FONT, T, UI, Btn, InfoBtn, Stepper, Tile, ask_save_path, hamster, px,
-                     round_rect, show_error)
+from settings import auto_actions, configured_dir, save_dir, start_lang, update_settings
+from widgets import (FONT, T, UI, Btn, InfoBtn, SettingsBtn, Stepper, Tile, ask_save_path, hamster,
+                     px, round_rect, show_error)
 from winapi import (IS_WIN, active_window_rect, already_running, copy_image_to_clipboard,
                     crop_screen, enable_dpi_awareness, get_monitors, grab_screen, hotkey_loop,
                     own_window_active, set_app_id)
@@ -78,6 +80,7 @@ class App:
         self.lang = start_lang()
         set_lang(self.lang)
         self.about = None
+        self.prefs = None
         self.hotkey_failed = None
         self.build_ui()
 
@@ -110,6 +113,7 @@ class App:
         tk.Label(titles, text=tr("app_name"), bg=T["bg"], fg=T["text"], font=(FONT, 15, "bold")).pack(anchor="w")
         tk.Label(titles, text=tr("subtitle"), bg=T["bg"], fg=T["sub"], font=(FONT, 9)).pack(anchor="w")
         InfoBtn(head, self.show_about).pack(side="right", padx=(px(10), 0))
+        SettingsBtn(head, self.show_settings).pack(side="right", padx=(px(10), 0))
         Stepper(head, self.delay).pack(side="right")
 
         cols = tk.Frame(f, bg=T["bg"])
@@ -162,12 +166,20 @@ class App:
         if self.about is not None and self.about.winfo_exists():
             pos = (self.about.winfo_x(), self.about.winfo_y())
             self.about.destroy()
+        if self.prefs is not None and self.prefs.winfo_exists():
+            self.prefs.destroy()  # 낡은 언어로 남지 않게 닫는다
         self.lang = lang
         set_lang(lang)
         update_settings(lang=lang)
         self.build_ui()
         if pos is not None:
             self.show_about(pos)
+
+    def show_settings(self):
+        if self.prefs is not None and self.prefs.winfo_exists():
+            self.prefs.lift()
+            return
+        self.prefs = open_settings(self.root)
 
     def show_about(self, pos=None):
         """제작 정보 창. pos=(x, y)를 주면 그 위치에 연다(언어 전환 직후)."""
@@ -304,6 +316,33 @@ class App:
         self.root.lift()
         if image is not None:
             self.add_capture(image)  # 편집기는 자동으로 열지 않고 미리보기만 표시
+            self.auto_actions(self.last)
+
+    def auto_actions(self, img):
+        """설정에 따라 캡처 직후 클립보드 복사 / 저장 폴더에 저장."""
+        want_copy, want_save = auto_actions()
+        copied, saved = False, None
+        if want_copy:
+            try:
+                copy_image_to_clipboard(img)
+                copied = True
+            except Exception as ex:
+                show_error("err_copy_title", ex, self.root)
+        if want_save:
+            try:
+                folder = configured_dir() or save_dir()
+                os.makedirs(folder, exist_ok=True)
+                path = unique_path(folder)
+                save_image(img, path)
+                saved = os.path.basename(path)
+            except Exception as ex:
+                show_error("err_save_title", ex, self.root)
+        if copied and saved:
+            self.info.config(text=tr("auto_both", name=saved))
+        elif saved:
+            self.info.config(text=tr("auto_saved", name=saved))
+        elif copied:
+            self.info.config(text=tr("auto_copied"))
 
     # ------------------------------------------------------------------
     # 미리보기 / 최근 캡처 목록
